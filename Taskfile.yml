@@ -1,0 +1,108 @@
+version: '3'
+
+vars:
+  REGISTRY: docker.io/novomirskoy
+  PHP_DEPS_IMAGES:
+    - composer/composer:2.8-bin
+
+tasks:
+  build:
+    silent: true
+    internal: true
+    cmds:
+      - "docker build --pull --no-cache --platform=linux/{{.ARCH}} --file=./{{.ENV}}/{{.IMAGE}}/{{.VERSION}}/Dockerfile -t {{.REGISTRY}}/{{.IMAGE}}-{{.ENV}}:{{.VERSION}}-{{.ARCH}} ./{{.ENV}}/{{.IMAGE}}"
+      - "echo Собран образ: {{.REGISTRY}}/{{.IMAGE}}-{{.ENV}}:{{.VERSION}}-{{.ARCH}}"
+    requires:
+      vars:
+        - IMAGE
+        - VERSION
+        - ARCH
+        - ENV
+
+  push:
+    internal: true
+    cmds:
+      - "docker push --platform=linux/{{.ARCH}} {{.REGISTRY}}/{{.IMAGE}}-{{.ENV}}:{{.VERSION}}-{{.ARCH}}"
+    requires:
+      vars:
+        - IMAGE
+        - VERSION
+        - ENV
+        - ARCH
+
+  build:*:*:*:*:
+    cmds:
+      - task: build
+        vars:
+          ENV: "{{index .MATCH 0}}"
+          IMAGE: "{{index .MATCH 1}}"
+          VERSION: "{{index .MATCH 2}}"
+          ARCH: "{{index .MATCH 3}}"
+
+  push:*:*:*:*:
+    cmds:
+      - task: push
+        vars:
+          ENV: "{{index .MATCH 0}}"
+          IMAGE: "{{index .MATCH 1}}"
+          VERSION: "{{index .MATCH 2}}"
+          ARCH: "{{index .MATCH 3}}"
+
+  manifest:create:
+    internal: true
+    cmds:
+      - "docker manifest rm {{.REGISTRY}}/{{.IMAGE}}-{{.ENV}}:{{.VERSION}} || true"
+      - "docker manifest create --amend {{.REGISTRY}}/{{.IMAGE}}-{{.ENV}}:{{.VERSION}} {{.REGISTRY}}/{{.IMAGE}}-{{.ENV}}:{{.VERSION}}-amd64 {{.REGISTRY}}/{{.IMAGE}}-{{.ENV}}:{{.VERSION}}-arm64"
+    requires:
+      vars:
+        - REGISTRY
+        - IMAGE
+        - ENV
+        - VERSION
+
+  manifest:push:
+    internal: true
+    cmds:
+      - "docker manifest push --purge {{.REGISTRY}}/{{.IMAGE}}-{{.ENV}}:{{.VERSION}}"
+    requires:
+      vars:
+        - REGISTRY
+        - IMAGE
+        - ENV
+        - VERSION
+
+  manifest:create:*:*:*:
+    cmds:
+      - task: manifest:create
+        vars:
+          ENV: "{{index .MATCH 0}}"
+          IMAGE: "{{index .MATCH 1}}"
+          VERSION: "{{index .MATCH 2}}"
+
+  manifest:push:*:*:*:
+    cmds:
+      - task: manifest:push
+        vars:
+          ENV: "{{index .MATCH 0}}"
+          IMAGE: "{{index .MATCH 1}}"
+          VERSION: "{{index .MATCH 2}}"
+
+  build:all:
+    cmds:
+      - task: build:dev:php-cli:8.4:arm64
+      - task: build:dev:postgres:17:arm64
+      - task: build:dev:node:22:arm64
+
+  push:all:
+    cmds:
+      - task: push:dev:php-cli:8.4:arm64
+      - task: push:dev:postgres:17:arm64
+      - task: push:dev:node:22:arm64
+
+  manifest:create:all:
+    cmds:
+      - task: manifest:create:dev:php-cli:8.4
+
+  manifest:push:all:
+    cmds:
+      - task: manifest:push:dev:php-cli:8.4
