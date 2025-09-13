@@ -4,6 +4,14 @@ vars:
   REGISTRY: docker.io/novomirskoy
   PHP_DEPS_IMAGES:
     - composer/composer:2.8-bin
+  ARCHS:
+    - arm64
+    - amd64
+  IMAGES:
+    - php-cli:8.4
+    - postgres:17
+    - node:22
+  LOG_FILE: build.log
 
 tasks:
   build:
@@ -11,7 +19,7 @@ tasks:
     internal: true
     cmds:
       - "docker build --pull --no-cache --platform=linux/{{.ARCH}} --file=./{{.ENV}}/{{.IMAGE}}/{{.VERSION}}/Dockerfile -t {{.REGISTRY}}/{{.IMAGE}}-{{.ENV}}:{{.VERSION}}-{{.ARCH}} ./{{.ENV}}/{{.IMAGE}}"
-      - "echo Собран образ: {{.REGISTRY}}/{{.IMAGE}}-{{.ENV}}:{{.VERSION}}-{{.ARCH}}"
+      - "echo Собран образ: {{.REGISTRY}}/{{.IMAGE}}-{{.ENV}}:{{.VERSION}}-{{.ARCH}} | tee -a {{.LOG_FILE}}"
     requires:
       vars:
         - IMAGE
@@ -89,20 +97,39 @@ tasks:
 
   build:all:
     cmds:
-      - task: build:dev:php-cli:8.4:arm64
-      - task: build:dev:postgres:17:arm64
-      - task: build:dev:node:22:arm64
+      - for:
+          matrix:
+            ARCH:
+              ref: .ARCHS
+            IMAGE:
+              ref: .IMAGES
+        task: "build:dev:{{.ITEM.IMAGE}}:{{.ITEM.ARCH}}"
+      - cat build.log
+      - defer: rm build.log
+
 
   push:all:
     cmds:
-      - task: push:dev:php-cli:8.4:arm64
-      - task: push:dev:postgres:17:arm64
-      - task: push:dev:node:22:arm64
+      - for:
+          matrix:
+            ARCH:
+              ref: .ARCHS
+            IMAGE:
+              ref: .IMAGES
+        task: "push:dev:{{.ITEM.IMAGE}}:{{.ITEM.ARCH}}"
 
   manifest:create:all:
     cmds:
-      - task: manifest:create:dev:php-cli:8.4
+      - for:
+          matrix:
+            IMAGE:
+              ref: .IMAGES
+        task: "manifest:create:dev:{{.ITEM.IMAGE}}"
 
   manifest:push:all:
     cmds:
-      - task: manifest:push:dev:php-cli:8.4
+      - for:
+          matrix:
+            IMAGE:
+              ref: .IMAGES
+        task: "manifest:push:dev:{{.ITEM.IMAGE}}"

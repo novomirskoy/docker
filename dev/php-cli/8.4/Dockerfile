@@ -6,7 +6,10 @@ RUN wget -O /usr/bin/install-php-extensions https://github.com/mlocati/docker-ph
 
 FROM php:8.4-cli
 
-RUN apt update && apt install -y unzip bash locales
+RUN apt update && apt install -y unzip bash locales \
+    && apt-get clean autoclean \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/{apt,dpkg,cache,log}
 
 # Timezone
 ENV TZ=Europe/Moscow
