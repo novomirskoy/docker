@@ -1,0 +1,12 @@
+; This file is for unifying the coding style for different editors and IDEs.
+; More information at http://editorconfig.org
+
+root = true
+
+; Unix-style newlines
+[*]
+end_of_line = LF
+insert_final_newline = true
+
+[Taskfile.yml]
+indent_size = 2
